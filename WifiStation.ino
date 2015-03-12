@@ -79,6 +79,7 @@ void setup(void)
 #endif
   
   pinMode(A0, INPUT);
+  pinMode(9, OUTPUT);
 }
 
 void loop(void)
@@ -128,7 +129,8 @@ void loop(void)
         // Send an empty line to signal start of body.
         client.fastrprintln(F(""));
         // Now send the response data.
-        if (strcmp(path, "/temp") == 0) {
+        handleRequest(client);
+/*        if (strcmp(path, "/temp") == 0) {
           client.fastrprintln(F("Hello temp."));
           getTemp();
           client.fastrprint(tempChar);
@@ -137,7 +139,7 @@ void loop(void)
         } else {
           client.fastrprintln(F("Hello world!"));
           client.fastrprint(F("You accessed path: ")); client.fastrprintln(path);
-        }
+        }*/
       }
       else {
         // Unsupported action, respond with an HTTP 405 method not allowed error.
@@ -156,37 +158,25 @@ void loop(void)
   }
 }
 
-// Return true if the buffer contains an HTTP request.  Also returns the request
-// path and action strings if the request was parsed.  This does not attempt to
-// parse any HTTP headers because there really isn't enough memory to process
-// them all.
-// HTTP request looks like:
-//  [method] [path] [version] \r\n
-//  Header_key_1: Header_value_1 \r\n
-//  ...
-//  Header_key_n: Header_value_n \r\n
-//  \r\n
-bool parseRequest(uint8_t* buf, int bufSize, char* action, char* path) {
-  // Check if the request ends with \r\n to signal end of first line.
-  if (bufSize < 2)
-    return false;
-  if (buf[bufSize-2] == '\r' && buf[bufSize-1] == '\n') {
-    parseFirstLine((char*)buf, action, path);
-    return true;
-  }
-  return false;
-}
 
-// Parse the action and path from the first line of an HTTP request.
-void parseFirstLine(char* line, char* action, char* path) {
-  // Parse first word up to whitespace as action.
-  char* lineaction = strtok(line, " ");
-  if (lineaction != NULL)
-    strncpy(action, lineaction, MAX_ACTION);
-  // Parse second word up to whitespace as path.
-  char* linepath = strtok(NULL, " ");
-  if (linepath != NULL)
-    strncpy(path, linepath, MAX_PATH);
+void handleRequest(Adafruit_CC3000_ClientRef client) {
+  char buf[32];
+  if (strcmp(action, "GET") == 0) {
+    if (strcmp(path, "/pinA0") == 0) {
+      itoa(analogRead(A0), buf, 10);
+      client.fastrprint("{\"A0\":");
+      client.fastrprint(buf);
+      client.fastrprintln("}");
+    } else if (strcmp(path, "/pin9/HIGH") == 0) {
+      digitalWrite(9, HIGH);
+      client.fastrprintln("{\"9\":\"HIGH\"}");
+    } else if (strcmp(path, "/pin9/LOW") == 0) {
+      digitalWrite(9, LOW);
+      client.fastrprintln("{\"9\":\"LOW\"}");
+    } else {
+      client.fastrprintln(F("What ?"));
+    }
+  }
 }
 
 

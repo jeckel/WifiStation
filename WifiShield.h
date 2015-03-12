@@ -7,6 +7,8 @@
 Adafruit_CC3000 cc3000 = Adafruit_CC3000(ADAFRUIT_CC3000_CS, ADAFRUIT_CC3000_IRQ, ADAFRUIT_CC3000_VBAT,
                                          SPI_CLOCK_DIVIDER); // you can change this clock speed
 
+bool displayConnectionDetails(void);
+void parseFirstLine(char* line, char* action, char* path);
 
 void initWifiShield()
 {
@@ -28,7 +30,7 @@ void initWifiShield()
   }
 
 #ifdef DEBUG
-    Serial.print(F("\nAttempting to connect to ")); Serial.println(WLAN_SSID);
+  Serial.print(F("\nAttempting to connect to ")); Serial.println(WLAN_SSID);
 #endif
 
   if (!cc3000.connectToAP(WLAN_SSID, WLAN_PASS, WLAN_SECURITY)) {
@@ -90,5 +92,40 @@ bool displayConnectionDetails(void)
     return true;
   }
 }
+
+
+// Return true if the buffer contains an HTTP request.  Also returns the request
+// path and action strings if the request was parsed.  This does not attempt to
+// parse any HTTP headers because there really isn't enough memory to process
+// them all.
+// HTTP request looks like:
+//  [method] [path] [version] \r\n
+//  Header_key_1: Header_value_1 \r\n
+//  ...
+//  Header_key_n: Header_value_n \r\n
+//  \r\n
+bool parseRequest(uint8_t* buf, int bufSize, char* action, char* path) {
+  // Check if the request ends with \r\n to signal end of first line.
+  if (bufSize < 2)
+    return false;
+  if (buf[bufSize-2] == '\r' && buf[bufSize-1] == '\n') {
+    parseFirstLine((char*)buf, action, path);
+    return true;
+  }
+  return false;
+}
+
+// Parse the action and path from the first line of an HTTP request.
+void parseFirstLine(char* line, char* action, char* path) {
+  // Parse first word up to whitespace as action.
+  char* lineaction = strtok(line, " ");
+  if (lineaction != NULL)
+    strncpy(action, lineaction, MAX_ACTION);
+  // Parse second word up to whitespace as path.
+  char* linepath = strtok(NULL, " ");
+  if (linepath != NULL)
+    strncpy(path, linepath, MAX_PATH);
+}
+
 
 #endif
